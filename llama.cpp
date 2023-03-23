@@ -220,6 +220,7 @@ struct llama_context {
 
     // decode output (2-dimensional array: [n_tokens][n_vocab])
     std::vector<float> logits;
+    std::vector<std::pair<float, llama_vocab::id>> logits_id;
     bool logits_all = false;
 
     // input embedding (1-dimensional array: [n_embd])
@@ -1486,43 +1487,38 @@ static void sample_top_k(std::vector<std::pair<float, llama_vocab::id>> & logits
     logits_id.resize(top_k);
 }
 
-static llama_vocab::id llama_sample_top_p_top_k(
-        llama_context & lctx,
-        const std::vector<llama_vocab::id> & last_n_tokens,
-        int top_k,
-        float top_p,
-        float temp,
-        float repeat_penalty) {
+llama_token llama_sample_top_p_top_k(
+          llama_context & lctx,
+      const llama_token * last_n_tokens,
+                    int   last_n_tokens_size,
+                    int   top_k,
+                  float   top_p,
+                  float   temp,
+                  float   repeat_penalty)
+{
     auto & rng = lctx.rng;
 
     const int n_logits = lctx.model.hparams.n_vocab;
 
     const auto & logits = lctx.logits;
     const auto * plogits = logits.data() + logits.size() - n_logits;
+    auto& logits_id = lctx.logits_id;
+    logits_id.clear();
 
     if (temp <= 0) {
-        // select the token with the highest logit directly
-        float max_logit = plogits[0];
-        llama_vocab::id max_id = 0;
-
-        for (int i = 1; i < n_logits; ++i) {
-            if (plogits[i] > max_logit) {
-                max_logit = plogits[i];
-                max_id = i;
-            }
-        }
-        return max_id;
+        // Greedy sampling
+        temp = 1.0f;
+        top_k = 1;
+        top_p = 0.0f;
     }
 
-    std::vector<std::pair<float, llama_vocab::id>> logits_id;
-    logits_id.reserve(n_logits);
-
     {
-        const float scale = 1.0f/temp;
+        const llama_token * const last_n_tokens_end = last_n_tokens + last_n_tokens_size;
+        const float scale = 1.0/temp;
         for (int i = 0; i < n_logits; ++i) {
             // repetition penalty from ctrl paper (https://arxiv.org/abs/1909.05858)
             // credit https://github.com/facebookresearch/llama/compare/main...shawwn:llama:main
-            if (std::find(last_n_tokens.begin(), last_n_tokens.end(), i) != last_n_tokens.end()) {
+            if (std::find(last_n_tokens, last_n_tokens_end, i) != last_n_tokens_end) {
                 // if score < 0 then repetition penalty has to multiplied to reduce the previous token probability
                 if (plogits[i] < 0.0f) {
                     logits_id.push_back(std::make_pair(plogits[i]*scale*repeat_penalty, i));
@@ -1799,6 +1795,7 @@ struct llama_context * llama_init_from_file(
         } else {
             ctx->logits.reserve(hparams.n_vocab);
         }
+        ctx->logits_id.reserve(hparams.n_vocab);
 
         if (params.embedding){
             ctx->embedding.resize(hparams.n_embd);
@@ -2359,12 +2356,10 @@ llama_token llama_sample_top_p_top_k(
 
     llama_token result = 0;
 
-    // TODO: avoid this ...
-    const auto last_n_tokens = std::vector<llama_token>(last_n_tokens_data, last_n_tokens_data + last_n_tokens_size);
-
     result = llama_sample_top_p_top_k(
             *ctx,
-            last_n_tokens,
+            last_n_tokens_data,
+            last_n_tokens_size,
             top_k,
             top_p,
             temp,

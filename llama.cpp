@@ -1513,29 +1513,77 @@ llama_token llama_sample_top_p_top_k(
     }
 
     {
+        fprintf(stderr, "\n");
         const llama_token * const last_n_tokens_end = last_n_tokens + last_n_tokens_size;
-        const float scale = 1.0/temp;
+        const float maxl = *std::max_element(plogits, plogits + n_logits);
+
+        // Filter token at least 1e6 times less probable than the maximum (supposing it got fully penalized)
+        const float minp_ratio = std::min(1e-6f, 1.f - top_p);
+        const float minl = maxl/repeat_penalty + log(minp_ratio)*temp;
+
+        const float scale_norepeat = 1.0f/temp;
+        const float scale_repeat = scale_norepeat/repeat_penalty;
+        const float scale_delta = (1.f - repeat_penalty)*scale_repeat;
+        const int repeat_half_life = 64.0f;
+        const float decay = repeat_half_life > 0 ? log(2.f) / repeat_half_life : 0.0f;
+
         for (int i = 0; i < n_logits; ++i) {
-            // repetition penalty from ctrl paper (https://arxiv.org/abs/1909.05858)
-            // credit https://github.com/facebookresearch/llama/compare/main...shawwn:llama:main
-            if (std::find(last_n_tokens, last_n_tokens_end, i) != last_n_tokens_end) {
-                // if score < 0 then repetition penalty has to multiplied to reduce the previous token probability
-                if (plogits[i] < 0.0f) {
-                    logits_id.push_back(std::make_pair(plogits[i]*scale*repeat_penalty, i));
-                } else {
-                    logits_id.push_back(std::make_pair(plogits[i]*scale/repeat_penalty, i));
-                }
-            } else {
-                logits_id.push_back(std::make_pair(plogits[i]*scale, i));
+            const float logit = plogits[i];
+            if(logit < minl) {
+                continue;
             }
+            float scale = scale_norepeat;
+            const llama_token * repeat_pos = std::find(last_n_tokens, last_n_tokens_end, i);
+            if (repeat_pos != last_n_tokens_end) {
+                if (repeat_half_life <= 0) {
+                    scale = scale_norepeat;
+                } else {
+                    // Find the least decayed repeat
+                    int worst_repeat_len = 1;
+                    int worst_repeat_dist = last_n_tokens_size;
+                    do {
+                        // Find the repeat length
+                        const llama_token * past = repeat_pos;
+                        const llama_token * present = last_n_tokens_end;
+                        while(past > last_n_tokens && *(past - 1) == *(present - 1)) {
+                            --past;
+                            --present;
+                        }
+                        const int repeat_len = 1 + repeat_pos - past; // +1 for the next token
+                        const int repeat_dist = last_n_tokens_end - repeat_pos;
+                        // if(repeat_len > 0) {
+                        //     fprintf(stderr, "repeat_len = %zu\n", repeat_len);
+                        // }
+                        if (repeat_dist * worst_repeat_len < worst_repeat_dist * repeat_len) {
+                            // fprintf(stderr, "rscore = %f dist = %d len = %d\n",
+                            //     static_cast<float>(repeat_dist) / repeat_len, repeat_dist, repeat_len);
+                            worst_repeat_len = repeat_len;
+                            worst_repeat_dist = repeat_dist;
+                        }
+                        repeat_pos = std::find(repeat_pos+1, last_n_tokens_end, i);
+                    } while(repeat_pos != last_n_tokens_end);
+                    if(worst_repeat_dist > 0) {
+                        scale = scale + scale_delta * std::exp(-decay * static_cast<float>(worst_repeat_dist) / worst_repeat_len);
+                        fprintf(stderr, "dist:%d len:%d loggit:%.3f->%.3f score:%.1f mix:%.3f penalty:%.4f '%s'\n",
+                            worst_repeat_dist, worst_repeat_len, logit, temp * scale * (logit),
+                            static_cast<float>(worst_repeat_dist) / worst_repeat_len,
+                            std::exp(-decay * static_cast<float>(worst_repeat_dist) / worst_repeat_len),
+                            1.f / (scale*temp),
+                            lctx.vocab.id_to_token[i].tok.c_str());
+                    }
+                }
+            }
+            logits_id.push_back(std::make_pair(logit*scale, i));
         }
+        fprintf(stderr, "maxl: %.3f minl: %.3f considered: %d\n", maxl, minl, logits_id.size());
     }
 
-    sample_top_k(logits_id, top_k > 0 ? std::min(top_k, n_logits) : n_logits);
+    const int n_logits_considered = static_cast<int>(logits_id.size());
+    sample_top_k(logits_id, top_k > 0 ? std::min(top_k, n_logits_considered) : n_logits_considered);
 
     // compute probs for the top k tokens
     std::vector<float> probs;
-    probs.reserve(logits_id.size());
+    probs.reserve(n_logits_considered);
 
     float maxl = logits_id[0].first;
     double sum = 0.0;
@@ -1552,7 +1600,7 @@ llama_token llama_sample_top_p_top_k(
 
     if (top_p < 1.0) {
         double cumsum = 0.0;
-        for (int i = 0; i < (int) probs.size(); i++) {
+        for (int i = 0; i < n_logits_considered; i++) {
             cumsum += probs[i];
             if (cumsum >= top_p) {
                 probs.resize(i + 1);
@@ -1571,8 +1619,9 @@ llama_token llama_sample_top_p_top_k(
 
     std::discrete_distribution<> dist(probs.begin(), probs.end());
     int idx = dist(rng);
-
-    return logits_id[idx].second;
+    auto token = logits_id[idx].second;
+    fprintf(stderr, "-> %s (max:%s)\n\n", lctx.vocab.id_to_token[token].tok.c_str(), lctx.vocab.id_to_token[logits_id[0].second].tok.c_str());
+    return token;
 }
 
 //

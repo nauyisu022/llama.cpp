@@ -1514,7 +1514,7 @@ llama_token llama_sample_top_p_top_k(
     }
 
     {
-        fprintf(stderr, "\n");
+        // fprintf(stderr, "\n");
         const llama_token * const last_n_tokens_end = last_n_tokens + last_n_tokens_size;
         const float maxl = *std::max_element(plogits, plogits + n_logits);
 
@@ -1564,18 +1564,18 @@ llama_token llama_sample_top_p_top_k(
                     } while(repeat_pos != last_n_tokens_end);
                     if(worst_repeat_dist > 0) {
                         scale = scale + scale_delta * std::exp(-decay * static_cast<float>(worst_repeat_dist) / worst_repeat_len);
-                        fprintf(stderr, "dist:%d len:%d loggit:%.3f->%.3f score:%.1f mix:%.3f penalty:%.4f '%s'\n",
-                            worst_repeat_dist, worst_repeat_len, logit, temp * scale * (logit),
-                            static_cast<float>(worst_repeat_dist) / worst_repeat_len,
-                            std::exp(-decay * static_cast<float>(worst_repeat_dist) / worst_repeat_len),
-                            1.f / (scale*temp),
-                            lctx.vocab.id_to_token[i].tok.c_str());
+                        // fprintf(stderr, "dist:%d len:%d logit:%.3f->%.3f score:%.1f mix:%.3f penalty:%.4f '%s'\n",
+                        //     worst_repeat_dist, worst_repeat_len, logit, temp * scale * (logit),
+                        //     static_cast<float>(worst_repeat_dist) / worst_repeat_len,
+                        //     std::exp(-decay * static_cast<float>(worst_repeat_dist) / worst_repeat_len),
+                        //     1.f / (scale*temp),
+                        //     lctx.vocab.id_to_token[i].tok.c_str());
                     }
                 }
             }
             logits_id.push_back(std::make_pair(logit*scale, i));
         }
-        fprintf(stderr, "maxl: %.3f minl: %.3f considered: %ld\n", maxl, minl, logits_id.size());
+        // fprintf(stderr, "maxl: %.3f minl: %.3f considered: %ld\n", maxl, minl, logits_id.size());
     }
 
     const int n_logits_considered = static_cast<int>(logits_id.size());
@@ -1620,7 +1620,7 @@ llama_token llama_sample_top_p_top_k(
     std::discrete_distribution<> dist(probs.begin(), probs.end());
     int idx = dist(rng);
     auto token = logits_id[idx].second;
-    fprintf(stderr, "-> %s (max:%s)\n\n", lctx.vocab.id_to_token[token].tok.c_str(), lctx.vocab.id_to_token[logits_id[0].second].tok.c_str());
+    // fprintf(stderr, "-> %s (max:%s)\n\n", lctx.vocab.id_to_token[token].tok.c_str(), lctx.vocab.id_to_token[logits_id[0].second].tok.c_str());
     return token;
 }
 

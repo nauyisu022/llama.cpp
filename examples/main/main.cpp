@@ -276,8 +276,8 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "Input prefix: '%s'\n", params.input_prefix.c_str());
         }
     }
-    fprintf(stderr, "sampling: temp = %f, top_k = %d, top_p = %f, repeat_last_n = %i, repeat_penalty = %f\n",
-        params.temp, params.top_k, params.top_p, params.repeat_last_n, params.repeat_penalty);
+    fprintf(stderr, "sampling: temp = %f, top_k = %d, top_p = %f, repeat_last_n = %i, repeat_half_life = %i, repeat_penalty = %f\n",
+        params.temp, params.top_k, params.top_p, params.repeat_last_n, params.repeat_half_life, params.repeat_penalty);
     fprintf(stderr, "generate: n_ctx = %d, n_batch = %d, n_predict = %d, n_keep = %d\n", n_ctx, params.n_batch, params.n_predict, params.n_keep);
     fprintf(stderr, "\n\n");
 
@@ -391,6 +391,8 @@ int main(int argc, char ** argv) {
             const float   top_p          = params.top_p;
             const float   temp           = params.temp;
             const float   repeat_penalty = params.repeat_penalty;
+            const int     repeat_last_n  = params.repeat_last_n;
+            const int   repeat_half_life = params.repeat_half_life;
 
             // optionally save the session on first sample (for faster prompt loading next time)
             if (!path_session.empty() && need_to_save_session) {
@@ -408,8 +410,8 @@ int main(int argc, char ** argv) {
                 }
 
                 id = llama_sample_top_p_top_k(ctx,
-                        last_n_tokens.data() + n_ctx - params.repeat_last_n,
-                        params.repeat_last_n, top_k, top_p, temp, repeat_penalty);
+                        last_n_tokens.data() + n_ctx - repeat_last_n,
+                        repeat_last_n, top_k, top_p, temp, repeat_penalty, repeat_half_life);
 
                 last_n_tokens.erase(last_n_tokens.begin());
                 last_n_tokens.push_back(id);

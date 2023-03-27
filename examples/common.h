@@ -28,6 +28,7 @@ struct gpt_params {
     float   top_p = 0.95f;
     float   temp  = 0.80f;
     float   repeat_penalty  = 1.10f;
+    int32_t repeat_half_life = 0;
 
     std::string model  = "models/lamma-7B/ggml-model.bin"; // model path
     std::string prompt = "";

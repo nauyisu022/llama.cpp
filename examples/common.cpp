@@ -126,6 +126,12 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.repeat_penalty = std::stof(argv[i]);
+        } else if (arg == "--repeat_half_life") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            }
+            params.repeat_half_life = std::stoi(argv[i]);
         } else if (arg == "-b" || arg == "--batch_size") {
             if (++i >= argc) {
                 invalid_param = true;
@@ -214,6 +220,13 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
         gpt_print_usage(argc, argv, default_params);
         exit(1);
     }
+    if(params.repeat_half_life > 0) {
+        if(params.repeat_last_n != default_params.repeat_last_n) {
+            fprintf(stderr, "warning: --repeat_last_n is ignored when --repeat_half_life is used\n");
+        }
+        // Gives the whole context to the repeat finder
+        params.repeat_last_n = params.n_ctx;
+    }
 
     return true;
 }
@@ -243,6 +256,7 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "  --top_k N             top-k sampling (default: %d)\n", params.top_k);
     fprintf(stderr, "  --top_p N             top-p sampling (default: %.1f)\n", (double)params.top_p);
     fprintf(stderr, "  --repeat_last_n N     last n tokens to consider for penalize (default: %d)\n", params.repeat_last_n);
+    fprintf(stderr, "  --repeat_half_life N  Enable decaying penalty, number of tokens after which the penalty is divided by 2 (default: %d)\n", params.repeat_half_life);
     fprintf(stderr, "  --repeat_penalty N    penalize repeat sequence of tokens (default: %.1f)\n", (double)params.repeat_penalty);
     fprintf(stderr, "  -c N, --ctx_size N    size of the prompt context (default: %d)\n", params.n_ctx);
     fprintf(stderr, "  --ignore-eos          ignore end of stream token and continue generating\n");

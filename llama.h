@@ -190,7 +190,8 @@ extern "C" {
                         int   top_k,
                       float   top_p,
                       float   temp,
-                      float   repeat_penalty);
+                      float   repeat_penalty,
+                        int   repeat_half_life);
 
     // Performance information
     LLAMA_API void llama_print_timings(struct llama_context * ctx);

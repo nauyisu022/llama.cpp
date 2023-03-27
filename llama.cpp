@@ -1494,7 +1494,8 @@ llama_token llama_sample_top_p_top_k(
                     int   top_k,
                   float   top_p,
                   float   temp,
-                  float   repeat_penalty)
+                  float   repeat_penalty,
+                    int   repeat_half_life)
 {
     auto & rng = lctx.rng;
 
@@ -1524,7 +1525,6 @@ llama_token llama_sample_top_p_top_k(
         const float scale_norepeat = 1.0f/temp;
         const float scale_repeat = scale_norepeat/repeat_penalty;
         const float scale_delta = (1.f - repeat_penalty)*scale_repeat;
-        const int repeat_half_life = 64.0f;
         const float decay = repeat_half_life > 0 ? log(2.f) / repeat_half_life : 0.0f;
 
         for (int i = 0; i < n_logits; ++i) {
@@ -1575,7 +1575,7 @@ llama_token llama_sample_top_p_top_k(
             }
             logits_id.push_back(std::make_pair(logit*scale, i));
         }
-        fprintf(stderr, "maxl: %.3f minl: %.3f considered: %d\n", maxl, minl, logits_id.size());
+        fprintf(stderr, "maxl: %.3f minl: %.3f considered: %ld\n", maxl, minl, logits_id.size());
     }
 
     const int n_logits_considered = static_cast<int>(logits_id.size());
@@ -2400,7 +2400,8 @@ llama_token llama_sample_top_p_top_k(
                     int   top_k,
                   float   top_p,
                   float   temp,
-                  float   repeat_penalty) {
+                  float   repeat_penalty,
+                    int   repeat_half_life) {
     const int64_t t_start_sample_us = ggml_time_us();
 
     llama_token result = 0;
@@ -2412,7 +2413,8 @@ llama_token llama_sample_top_p_top_k(
             top_k,
             top_p,
             temp,
-            repeat_penalty);
+            repeat_penalty,
+            repeat_half_life);
 
     ctx->t_sample_us += ggml_time_us() - t_start_sample_us;
     ctx->n_sample++;

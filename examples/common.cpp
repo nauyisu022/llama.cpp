@@ -389,18 +389,11 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
                 break;
             }
             params.input_prefix = argv[i];
-<<<<<<< HEAD
-        } else if (arg == "--in-suffix") {
-=======
-        } else if (arg == "--trace") {
->>>>>>> trace2file
+        }else if (arg == "--trace") {
             if (++i >= argc) {
                 invalid_param = true;
                 break;
             }
-<<<<<<< HEAD
-            params.input_suffix = argv[i];
-=======
             params.trace_fn = argv[i];
 >>>>>>> trace2file
         } else {
@@ -545,7 +538,6 @@ std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::s
     return res;
 }
 
-<<<<<<< HEAD
 struct llama_context * llama_init_from_gpt_params(const gpt_params & params) {
     auto lparams = llama_context_default_params();
 
@@ -955,7 +947,7 @@ bool console_readline(console_state & con_st, std::string & line) {
     fflush(con_st.out);
     return has_more;
 }
-=======
+
 // Open the trace file and write the header in the binary format: magic:int version:int n_vocab:int
 std::ofstream trace_open(const gpt_params & params, struct llama_context * ctx) {
     std::ofstream trace_ofs;
@@ -995,4 +987,3 @@ void trace_write_record(
     out.write(reinterpret_cast<const char*>(embd.data()), sizeof(llama_token)*N);
     out.write(reinterpret_cast<const char*>(logits), sizeof(float)*N*n_vocab);
 }
->>>>>>> trace2file

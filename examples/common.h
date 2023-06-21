@@ -136,11 +136,11 @@ struct console_state {
     bool use_color = false;
     console_color_t color = CONSOLE_COLOR_DEFAULT;
 
-    FILE* out = stdout;
-#if defined (_WIN32)
-    void* hConsole;
+    FILE *out = stdout;
+#if defined(_WIN32)
+    void *hConsole;
 #else
-    FILE* tty = nullptr;
+    FILE *tty = nullptr;
     termios prev_state;
 #endif
 };

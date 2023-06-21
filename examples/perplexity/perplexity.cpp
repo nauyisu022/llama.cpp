@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <ctime>
+#include <fstream>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -30,6 +31,7 @@ void perplexity(llama_context * ctx, const gpt_params & params) {
     // Run `./perplexity -m models/7B/ggml-model-q4_0.bin -f wiki.test.raw`
     // Output: `perplexity: 13.5106 [114/114]`
     // BOS tokens will be added for each chunk before eval
+    
     auto tokens = ::llama_tokenize(ctx, params.prompt, true);
 
     int count   = 0;
@@ -39,6 +41,7 @@ void perplexity(llama_context * ctx, const gpt_params & params) {
     const int n_batch = params.n_batch;
 
     double nll = 0.0;
+    std::ofstream trace_ofs = trace_open(params, ctx);
     fprintf(stderr, "%s: calculating perplexity over %d chunks, batch_size=%d\n", __func__, n_chunk, n_batch);
 
     for (int i = 0; i < n_chunk; ++i) {
@@ -100,7 +103,10 @@ void perplexity(llama_context * ctx, const gpt_params & params) {
         // Example, we have a context window of 512, we will compute perplexity for each of the
         // last 256 tokens.  Then, we split the input up into context window size chunks to
         // process the entire prompt.
-        for (int j = std::min(512, params.n_ctx / 2); j < params.n_ctx - 1; ++j) {
+
+        auto logits = llama_get_logits(ctx);
+        trace_write_record(trace_ofs, embd, ctx);
+        for (int j = params.n_ctx / 2; j < params.n_ctx - 1; ++j) {
             // Calculate probability of next token, given the previous ones.
             const std::vector<float> tok_logits(
                 logits.begin() + (j + 0) * n_vocab,
@@ -116,6 +122,7 @@ void perplexity(llama_context * ctx, const gpt_params & params) {
         fflush(stdout);
     }
     printf("\n");
+    trace_ofs.close();
 }
 
 int main(int argc, char ** argv) {

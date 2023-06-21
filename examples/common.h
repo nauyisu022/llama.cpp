@@ -33,7 +33,6 @@ struct gpt_params {
     bool    low_vram                        = 0;   // if true, reduce VRAM usage at the cost of performance
 
     // sampling parameters
-<<<<<<< HEAD
     std::unordered_map<llama_token, float> logit_bias; // logit bias for specific tokens
     int32_t top_k             = 40;    // <= 0 to use vocab size
     float   top_p             = 0.95f; // 1.0 = disabled
@@ -47,18 +46,6 @@ struct gpt_params {
     int     mirostat          = 0;     // 0 = disabled, 1 = mirostat, 2 = mirostat 2.0
     float   mirostat_tau      = 5.00f; // target entropy
     float   mirostat_eta      = 0.10f; // learning rate
-=======
-    int32_t top_k = 40;
-    float   top_p = 0.95f;
-    float   temp  = 0.80f;
-    float   repeat_penalty  = 1.10f;
-
-    std::string model  = "models/lamma-7B/ggml-model.bin"; // model path
-    std::string prompt = "";
-    std::string input_prefix = ""; // string to prefix user inputs with
-    std::string trace_fn = "";
-
->>>>>>> trace2file
 
     std::string model             = "models/7B/ggml-model.bin"; // model path
     std::string model_alias       = "unknown"; // model alias
@@ -105,7 +92,6 @@ std::string gpt_random_prompt(std::mt19937 & rng);
 std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos);
 
 //
-<<<<<<< HEAD
 // Model utils
 //
 
@@ -136,11 +122,11 @@ struct console_state {
     bool use_color = false;
     console_color_t color = CONSOLE_COLOR_DEFAULT;
 
-    FILE *out = stdout;
-#if defined(_WIN32)
-    void *hConsole;
+    FILE* out = stdout;
+#if defined (_WIN32)
+    void* hConsole;
 #else
-    FILE *tty = nullptr;
+    FILE* tty = nullptr;
     termios prev_state;
 #endif
 };
@@ -149,19 +135,3 @@ void console_init(console_state & con_st);
 void console_cleanup(console_state & con_st);
 void console_set_color(console_state & con_st, console_color_t color);
 bool console_readline(console_state & con_st, std::string & line);
-=======
-// Trace utils
-//
-
-static constexpr uint32_t LLAMA_TRACE_VERSION = 0;
-static constexpr uint32_t LLAMA_TRACE_MAGIC = 0x67676d74; // 'ggmt' in hex
-
-// Open format: magic:int version:int n_vocab:int
-std::ofstream trace_open(const gpt_params & params, struct llama_context * ctx);
-
-// Write a record using the binary format: N:int {N}token_id:int {N*n_vocab}logits:float
-void trace_write_record(
-                     std::ofstream & out,
-    const std::vector<llama_token> & embd,
-              struct llama_context * ctx);
->>>>>>> trace2file
